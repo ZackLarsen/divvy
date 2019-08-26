@@ -1,0 +1,689 @@
+---
+title: "Data Visualization Dashboard"
+#author: "Zack Larsen"
+date: "May 26, 2019"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: "journal"
+    social: [ "menu" ]
+    navbar:
+      - { title: "About Me", href: "https://zacklarsen.github.io/" , align: right}
+      - { icon: "fa-github", href: "https://github.com/ZackLarsen" , align: right}
+      - { icon: "fa-linkedin", href: "https://www.linkedin.com/in/larsenzachary/", align: right}
+    source: embed
+---
+
+<!-- <style> -->
+
+<!-- body { -->
+<!--   padding-top:0px -->
+<!-- } -->
+
+<!-- .navbar{ -->
+<!--   visibility: hidden -->
+<!-- } -->
+
+<!-- </style> -->
+
+```{r setup, include=FALSE}
+library(pacman)
+library(tidyverse)
+#library(hrbrthemes)
+
+#devtools::install_github("jeromefroe/circlepackeR")
+#devtools::install_github("thomasp85/patchwork")
+
+#https://github.com/hrbrmstr/hrbrthemes
+#devtools::install_github("hrbrmstr/hrbrthemes")
+
+p_load(flexdashboard, leaflet, leaflet.extras, dplyr, ggvis, here, conflicted, data.table, jsonlite, kableExtra, glue, geosphere, DT, networkD3, htmltools, geojsonio, magrittr, treemap, highcharter, viridisLite, ggmap, scales, ggthemes, rbokeh, data.tree, ggraph, circlepackeR, viridis, patchwork, ggraph, igraph, RColorBrewer, collapsibleTree)
+
+#plotly
+
+conflict_prefer("filter", "dplyr")
+
+here::here() # "/Users/zacklarsen/Zack_Master/Projects/Dataviz/R/Divvy_Flex"
+
+chi_data <- file.path("/Users/zacklarsen/Zack_Master/Datasets/Chicago")
+
+stations <- fromJSON("https://feeds.divvybikes.com/stations/stations.json")
+
+crimes <- fread(file.path(chi_data,"Crimes_sample.csv")) %>% 
+  na.omit()
+
+ward_boundaries <- geojsonio::geojson_read(file.path(chi_data,"Boundaries_Wards.geojson"), what = "sp")
+
+```
+
+
+Landing Page - Crime Map
+=========================================
+
+Column 
+-------------------------------------
+
+### Chicago crimes, plotted using leaflet. This map can be zoomed in on interactively and the station names will be displayed upon hovering over the icon.
+
+```{r, cache=TRUE}
+
+crimes_popup <- crimes %>% 
+  mutate(
+    popup_text = paste(
+      sep = "<br/>",
+      glue("<b><a>{`Primary Type`}</a></b>"),
+      Description,
+      Date,
+      paste(Latitude, Longitude, sep=', ')
+    )
+  ) %>% 
+  na.omit()
+
+my_map <- leaflet(crimes_popup) %>%
+  addTiles() %>%
+  addMarkers(lat = crimes_popup$Latitude,
+             lng = crimes_popup$Longitude,
+             label = lapply(crimes_popup$popup_text, HTML)
+             )
+my_map
+
+```
+
+***
+
+https://rstudio.github.io/leaflet/
+
+- Interactive panning/zooming
+
+- Notice the icons, when clicked, display the crime description and time when it was committed/reported
+
+
+Column {.tabset}
+-------------------------------------
+   
+### Data
+
+```{r, cache=TRUE}
+
+crimes %>% 
+  select(`Case Number`, Date, `Primary Type`, Description) %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```   
+
+
+### Crimes Involving Use of Firearm
+    
+```{r, cache=TRUE, eval=TRUE}
+
+crimes %>% 
+  filter(grepl("GUN",Description)) %>% 
+  select(`Case Number`, Date, `Primary Type`, Description) %>% 
+  arrange(Date) %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+
+
+### Arrests Made
+    
+```{r, cache=TRUE, eval=TRUE}
+
+crimes %>% 
+  filter(Arrest == TRUE) %>% 
+  select(`Case Number`, Date, Arrest, `Primary Type`, Description) %>% 
+  arrange(Date) %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+
+
+Statistical {.storyboard data-commentary-width=200 data-navmenu="Traditional"} 
+=========================================
+
+These visualization convey information about distributions and uncertainty.
+
+### Boxplots are used for examining the range of values that a continuous variable takes on.
+
+```{r, cache=TRUE, eval=TRUE}
+
+ggplot(diamonds, aes(x=diamonds$cut, y=diamonds$price, fill=diamonds$color)) +
+  geom_boxplot() + 
+  scale_y_continuous(labels = dollar) + 
+  #guides(fill=FALSE) + 
+  ggtitle("Diamond price by cut type and color") + 
+  xlab("Type") + 
+  ylab("Price") + 
+  theme_fivethirtyeight() + 
+  coord_flip()
+
+x1 <- ggplot(data = diamonds,
+             mapping = aes(x = cut, y = price)) +
+  theme_economist() + 
+  scale_fill_economist()
+
+x1 + geom_boxplot(fill = "lightpink") + 
+  scale_y_continuous(label = dollar) +
+  coord_flip() + 
+  ggtitle("Diamond price by cut type")
+
+```
+
+<!-- *** -->
+
+<!-- Here we have two groupings: the "cut" of the diamond on the y-axis and the "color", which is mapped to the "fill" attribute. -->
+
+
+### Scatter Plots
+
+```{r, cache=TRUE, eval=TRUE}
+
+p <- ggplot(data = diamonds,
+            mapping = aes(x = depth, y = price))
+
+p + geom_point() +
+  annotate(geom = "rect", xmin = 70, xmax = 80,
+           ymin = 15000, ymax = 20000, fill = "red", alpha = 0.2) + 
+  annotate(geom = "text", x = 70, y = 14000,
+           label = "A surprisingly high \n recovery rate.", hjust = 0)
+
+```
+
+```{r, cache=TRUE, eval=TRUE}
+
+figure() %>%
+  ly_points(Sepal.Length, Sepal.Width, data = iris, color = Species, hover = list(Sepal.Length, Sepal.Width))
+
+```
+
+
+### Density plots are helpful in showing where the largest mass of the distribution of a continuous variable lies. They give more context than a traditional 5-figure boxplot.
+
+```{r, cache=TRUE, eval=TRUE}
+
+# Proportionally scaled density map
+d2 <- ggplot(data = diamonds,
+             mapping = aes(x = price, fill = cut, color = cut))
+
+d2 + geom_density(alpha = 0.3, mapping = aes(y = ..scaled..))
+
+```
+
+
+### Rbokeh density
+
+```{r cache=TRUE, eval=TRUE}
+
+figure(width = 600, height = 400, legend_location = "top_right") %>%
+  ly_hist(price, data = diamonds, breaks = 40, freq = FALSE, hover = (diamonds$price)) %>%
+  ly_density(price, data = diamonds, color = "red")
+
+```
+
+
+Categorical {.storyboard data-navmenu="Traditional"} 
+=========================================
+
+These visualizations correspond to count data obtained by aggregating by certain levels or factors and count the number of observations for each category or subcategory.
+
+### Treemap
+
+```{r Treemap, cache=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
+
+thm <- 
+  hc_theme(
+    colors = c("#1a6ecc", "#434348", "#90ed7d"),
+    chart = list(
+      backgroundColor = "transparent",
+      style = list(fontFamily = "Source Sans Pro")
+    ),
+    xAxis = list(
+      gridLineWidth = 1
+    )
+  )
+
+treemap_data <- crimes %>% 
+  select(`Case Number`, `Primary Type`, Description) %>% 
+  group_by(`Primary Type`, Description) %>% 
+  summarise(Count = n_distinct(`Case Number`))
+
+tm <- treemap(treemap_data, index = c("Primary Type", "Description"),
+              vSize = "Count", vColor = "Count",
+              type = "value", palette = rev(viridis(6)))
+
+highchart() %>% 
+  hc_add_series_treemap(tm, allowDrillToNode = TRUE,
+                        layoutAlgorithm = "squarified") %>% 
+  hc_add_theme(thm)
+
+```
+
+
+### Packed Bubble Charts
+
+```{r Bubble, cache=TRUE, error=FALSE, warning=FALSE, eval=TRUE}
+
+# https://www.r-graph-gallery.com/338-interactive-circle-packing-with-circlepacker/
+
+# Let's use the 'flare dataset' (stored in the ggraph library)
+data_edge=flare$edges
+data_edge$from=gsub(".*\\.","",data_edge$from)
+data_edge$to=gsub(".*\\.","",data_edge$to)
+#head(data_edge)   # This is an edge list
+ 
+# We need to convert it to a nested data frame. the data.tree library is our best friend for that:
+data_tree <- FromDataFrameNetwork(data_edge)
+data_nested <- ToDataFrameTree(data_tree, 
+                            level1 = function(x) x$path[2],
+                            level2 = function(x) x$path[3],
+                            level3 = function(x) x$path[4],
+                            level4 = function(x) x$path[5])[-1,-1]
+data_nested <- na.omit(data_nested)
+ 
+# Now we can plot it as seen before!
+data_nested$pathString <- paste("roots", data_nested$level1, data_nested$level2, data_nested$level3, data_nested$level4, sep = "/")
+data_nested$value=1
+data_Node <- as.Node(data_nested)
+
+circlepackeR(data_Node, size = "value")
+
+```
+
+
+### Collapsible Tree Diagram
+
+```{r tree, cache=TRUE, eval=TRUE}
+
+# https://adeelk93.github.io/collapsibleTree/
+
+org <- data.frame(
+    Manager = c(
+        NA, "Ana", "Ana", "Bill", "Bill", "Bill", "Claudette", "Claudette", "Danny",
+        "Fred", "Fred", "Grace", "Larry", "Larry", "Nicholas", "Nicholas"
+    ),
+    Employee = c(
+        "Ana", "Bill", "Larry", "Claudette", "Danny", "Erika", "Fred", "Grace",
+        "Henri", "Ida", "Joaquin", "Kate", "Mindy", "Nicholas", "Odette", "Peter"
+    ),
+    Title = c(
+        "President", "VP Operations", "VP Finance", "Director", "Director", "Scientist",
+        "Manager", "Manager", "Jr Scientist", "Operator", "Operator", "Associate",
+        "Analyst", "Director", "Accountant", "Accountant"
+    )
+)
+
+org$Color <- org$Title
+levels(org$Color) <- colorspace::rainbow_hcl(11)
+collapsibleTreeNetwork(
+  org,
+  attribute = "Title",
+  fill = "Color",
+  nodeSize = "leafCount",
+  collapsed = FALSE
+)
+
+```
+
+
+### Categorical Heatmaps
+
+```{r, cache=TRUE, eval=FALSE}
+
+
+
+```
+
+
+Geospatial {.storyboard}
+=========================================
+
+This board is for displaying information about coordinate points or geospatial features such as countries, states, counties, rivers, elevation, etc.
+
+
+### Heatmap
+
+```{r, cache=TRUE, eval=TRUE}
+
+leaflet(crimes) %>%
+  addTiles() %>% 
+  addHeatmap(lng=~Longitude,
+             lat=~Latitude,
+             radius = 8)
+
+```
+
+
+### Crime Totals By Ward
+
+```{r, cache=TRUE, eval=TRUE}
+
+ward_totals <- crimes %>% 
+  select(Ward, `Primary Type`) %>% 
+  group_by(Ward) %>% 
+  summarise(n()) %<>% 
+  mutate(count = `n()`)
+
+ward_totals <- setNames(ward_totals$count, as.character(ward_totals$Ward))
+
+ward_boundaries$crime_total <- ward_totals
+
+labels <- sprintf(
+  "<strong>Ward #%s</strong><br/> %g crimes committed in this ward",
+  ward_boundaries$ward, ward_boundaries$crime_total
+) %>% lapply(htmltools::HTML)
+
+
+qpal <- colorQuantile("Reds", ward_boundaries$crime_total, n = 10)
+
+leaflet(ward_boundaries) %>%
+  addTiles() %>%
+  addPolygons(fillColor = ~qpal(crime_total),
+              weight = 2,
+              opacity = 1,
+              color = "white",
+              dashArray = "3",
+              fillOpacity = 0.9,
+              highlight = highlightOptions(
+                weight = 3, # This is the width of the dashed line
+                color = "#666",
+                dashArray = "",
+                fillOpacity = 0.7,
+                bringToFront = TRUE),
+              label = ~labels,
+              labelOptions = labelOptions(
+                style = list("font-weight" = "normal", padding = "3px 8px"),
+                textsize = "15px",
+                direction = "auto")) %>% 
+  addLegend(pal = qpal, 
+            values = ~crime_total,
+            opacity = 0.7, 
+            title = "Crime Count Quantile",
+            position = "topright")
+
+```
+
+
+### Clusters
+
+```{r, cache=TRUE, eval=TRUE}
+
+crimes_full <- crimes %>% na.omit()
+
+leaflet(crimes_full) %>%
+  addTiles() %>%
+  addMarkers(
+    lat = crimes_full$Latitude, 
+    lng = crimes_full$Longitude,
+    clusterOptions = markerClusterOptions()
+  )
+
+```
+
+
+### Circle and Tile Layers
+
+```{r, cache=TRUE, eval=TRUE}
+
+BATTERY <- crimes[crimes$`Primary Type` == 'BATTERY',]
+ROBBERY <- crimes[crimes$`Primary Type` == 'ROBBERY',]
+HOMICIDE <- crimes[crimes$`Primary Type` == 'HOMICIDE',]
+ASSAULT <- crimes[crimes$`Primary Type` == 'ASSAULT',]
+PROSTITUTION <- crimes[crimes$`Primary Type` == 'PROSTITUTION',]
+GTA <- crimes[crimes$`Primary Type` == 'MOTOR VEHICLE THEFT',]
+
+leaflet(crimes) %>%
+  # Base groups
+  addTiles(group = "Default") %>%
+  addProviderTiles(providers$Stamen.Toner, group = "Toner") %>%
+  addProviderTiles(providers$Stamen.Watercolor, group = "Watercolor") %>% 
+  addProviderTiles(providers$NASAGIBS.ViirsEarthAtNight2012, group = "NASA") %>%
+  # Overlay groups
+  addCircles(~BATTERY$Longitude, ~BATTERY$Latitude, group = "BATTERY") %>%
+  addCircles(~ROBBERY$Longitude, ~ROBBERY$Latitude, group = "ROBBERY") %>%
+  addCircles(~HOMICIDE$Longitude, ~HOMICIDE$Latitude, group = "HOMICIDE") %>%
+  addCircles(~ASSAULT$Longitude, ~ASSAULT$Latitude, group = "ASSAULT") %>%
+  addCircles(~PROSTITUTION$Longitude, ~PROSTITUTION$Latitude, group = "PROSTITUTION") %>%
+  addCircles(~GTA$Longitude, ~GTA$Latitude, group = "GTA") %>%
+  # Layers control
+  addLayersControl(
+    baseGroups = c("Default", "Toner", "Watercolor", "NASA"),
+    overlayGroups = c("BATTERY","ROBBERY","HOMICIDE","ASSAULT","PROSTITUTION","GTA"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+```
+
+
+### Custom icon colors
+
+```{r, warning=FALSE, error=FALSE, eval=TRUE}
+
+#https://rstudio.github.io/leaflet/markers.html
+
+getColor <- function(df, var) {
+  quovar <- enquo(var)
+  dat <- df %>% select(!!quovar)
+  names(dat) <- 'x'
+  lapply(dat$x, function(x) {
+    if(x == 'ROBBERY') {"green"}
+    else if(x == 'ASSAULT') {"orange"}
+    else if(x == 'THEFT') {"blue"}
+    else {"red"}
+  })
+}
+
+icons <- awesomeIcons(
+  icon = 'ios-close',
+  iconColor = 'black',
+  library = 'ion',
+  markerColor = getColor(crimes, `Primary Type`)
+)
+
+leaflet(crimes) %>%
+  addTiles() %>%
+  addAwesomeMarkers(~Longitude, ~Latitude, icon=icons, label=~as.character(`Primary Type`))
+
+
+
+# Alternative implementation:
+
+# getColor <- function(df) {
+#   # Need to use lapply() here instead os sapply()
+#   # like the example from leaflet for r. The reason
+#   # is that jsonlite is expecting a named list, not a
+#   # named vector
+#   lapply(df$`Primary Type`, function(`Primary Type`) {
+#     if(`Primary Type` == 'ROBBERY') {"green"}
+#     else if(`Primary Type` == 'ASSAULT') {"orange"}
+#     else if(`Primary Type` == 'THEFT') {"blue"}
+#     else {"red"}
+#   })
+# }
+# 
+# icons <- awesomeIcons(
+#   icon = 'ios-close',
+#   iconColor = 'black',
+#   library = 'ion',
+#   markerColor = getColor(crimes)
+# )
+# 
+# leaflet(crimes) %>%
+#   addTiles() %>%
+#   addAwesomeMarkers(~Longitude, ~Latitude, icon=icons, label=~as.character(`Primary Type`))
+
+```
+
+
+Custom {.storyboard}
+=========================================
+
+This board is for visualizations that might not appear frequently in many examples. Some of them may be easily created by adding a few options to more popular plots, whereas some others require creative thinking and harnessing the power of visualization packages that goes well beyond pre-defined functions.
+
+### Dumbbell (Love) plot
+
+```{r, cache=TRUE, eval=TRUE}
+
+#https://www.r-bloggers.com/make-multi-point-dumbbell-plots-in-ggplot2/
+
+tibble(
+  val1 = c(3, 2, 4),
+  val2 = c(1, 4, 5),
+  val3 = c(5, 8, 6),
+  cat = factor(month.name[1:3], levels = rev(month.name[1:3]))
+) -> xdf
+
+
+ggplot() +
+  # reshape the data frame & get min value so you can draw an eye-tracking line (this is one geom)
+  geom_segment(
+    data = gather(xdf, measure, val, -cat) %>% 
+      group_by(cat) %>% 
+      top_n(-1) %>% 
+      slice(1) %>%
+      ungroup(),
+    aes(x = 0, xend = val, y = cat, yend = cat),
+    linetype = "dotted", size = 0.5, color = "gray80"
+  ) +
+  # reshape the data frame & get min/max category values so you can draw the segment (this is another geom)
+  geom_segment(
+    data = gather(xdf, measure, val, -cat) %>% 
+      group_by(cat) %>% 
+      summarise(start = range(val)[1], end = range(val)[2]) %>% 
+      ungroup(),
+    aes(x = start, xend = end, y = cat, yend = cat),
+    color = "gray80", size = 2
+  ) +
+  # reshape the data frame & plot the points
+  geom_point(
+    data = gather(xdf, measure, value, -cat),
+    aes(value, cat, color = measure), 
+    size = 4
+  ) +
+  # i just extended the scale a bit + put axis on top; choose aesthetics that work 
+  # for you
+  #scale_x_comma(position = "top", limits = c(0, 10)) +
+  #scale_color_ipsum(name = "A real legend title") +
+  labs(
+    x = "Description of the value", y = NULL, 
+    title = "A good plot title"
+  ) +
+  #theme_ipsum_rc(grid = "X") +
+  theme(legend.position = "top")
+
+```
+
+
+### Hierarchical Edge Bundling
+
+```{r}
+
+# https://www.data-to-viz.com/graph/edge_bundling.html
+
+# The flare dataset is provided in ggraph
+edges <- flare$edges
+vertices <- flare$vertices %>% arrange(name) %>% mutate(name=factor(name, name))
+connections <- flare$imports
+
+# Preparation to draw labels properly:
+vertices$id=NA
+myleaves=which(is.na( match(vertices$name, edges$from) ))
+nleaves=length(myleaves)
+vertices$id[ myleaves ] = seq(1:nleaves)
+vertices$angle= 90 - 360 * vertices$id / nleaves
+vertices$hjust<-ifelse( vertices$angle < -90, 1, 0)
+vertices$angle<-ifelse(vertices$angle < -90, vertices$angle+180, vertices$angle)
+
+# Build a network object from this dataset:
+mygraph <- graph_from_data_frame(edges, vertices = vertices)
+
+# The connection object must refer to the ids of the leaves:
+from = match( connections$from, vertices$name)
+to = match( connections$to, vertices$name)
+
+# Make the plot
+ggraph(mygraph, layout = 'dendrogram', circular = TRUE) + 
+    geom_conn_bundle(data = get_con(from = from, to = to), alpha = 0.1, colour="#69b3a2") + 
+    geom_node_text(aes(x = x*1.01, y=y*1.01, filter = leaf, label=shortName, angle = angle, hjust=hjust), size=1.5, alpha=1) +
+    coord_fixed() +
+    theme_void() +
+    theme(
+      legend.position="none",
+      plot.margin=unit(c(0,0,0,0),"cm"),
+    ) +
+    expand_limits(x = c(-1.2, 1.2), y = c(-1.2, 1.2))
+
+```
+
+
+### HEB 2
+
+```{r, cache=TRUE, warning=FALSE, eval=TRUE}
+
+# https://www.r-graph-gallery.com/311-add-labels-to-hierarchical-edge-bundling/
+
+# create a data frame giving the hierarchical structure of your individuals
+d1=data.frame(from="origin", to=paste("group", seq(1,10), sep=""))
+d2=data.frame(from=rep(d1$to, each=10), to=paste("subgroup", seq(1,100), sep="_"))
+edges=rbind(d1, d2)
+
+# create a dataframe with connection between leaves (individuals)
+all_leaves=paste("subgroup", seq(1,100), sep="_")
+connect=rbind( data.frame( from=sample(all_leaves, 100, replace=T) , to=sample(all_leaves, 100, replace=T)), data.frame( from=sample(head(all_leaves), 30, replace=T) , to=sample( tail(all_leaves), 30, replace=T)), data.frame( from=sample(all_leaves[25:30], 30, replace=T) , to=sample( all_leaves[55:60], 30, replace=T)), data.frame( from=sample(all_leaves[75:80], 30, replace=T) , to=sample( all_leaves[55:60], 30, replace=T)) )
+connect$value=runif(nrow(connect))
+
+# create a vertices data.frame. One line per object of our hierarchy
+vertices = data.frame(
+  name = unique(c(as.character(edges$from), as.character(edges$to))) , 
+  value = runif(111)
+) 
+# Let's add a column with the group of each name. It will be useful later to color points
+vertices$group = edges$from[ match( vertices$name, edges$to ) ]
+
+#Let's add information concerning the label we are going to add: angle, horizontal adjustement and potential flip
+#calculate the ANGLE of the labels
+vertices$id=NA
+myleaves=which(is.na(match(vertices$name, edges$from)))
+nleaves=length(myleaves)
+vertices$id[ myleaves ] = seq(1:nleaves)
+vertices$angle = 90 - 360 * vertices$id / nleaves
+
+# calculate the alignment of labels: right or left
+# If I am on the left part of the plot, my labels have currently an angle < -90
+vertices$hjust<-ifelse(vertices$angle <- 90, 1, 0)
+
+# flip angle BY to make them readable
+vertices$angle<-ifelse(vertices$angle <- 90, vertices$angle + 180, vertices$angle)
+
+
+# Create a graph object
+mygraph <- graph_from_data_frame(edges, vertices=vertices)
+
+# The connection object must refer to the ids of the leaves:
+from = match(connect$from, vertices$name)
+to = match(connect$to, vertices$name)
+
+
+
+ggraph(mygraph, layout = 'dendrogram', circular = TRUE) + 
+  geom_conn_bundle(data = get_con(from = from, to = to), alpha=0.2, width=0.9, aes(colour=..index..)) +
+  scale_edge_colour_distiller(palette = "RdPu") +
+  
+  geom_node_text(aes(x = x*1.15, y=y*1.15, filter = leaf, label=name, angle = angle, hjust=hjust, colour=group), size=2, alpha=1) +
+  
+  geom_node_point(aes(filter = leaf, x = x*1.07, y=y*1.07, colour=group, size=value, alpha=0.2)) +
+  scale_colour_manual(values= rep( brewer.pal(9,"Paired") , 30)) +
+  scale_size_continuous( range = c(0.1,10) ) +
+  
+  theme_void() +
+  theme(
+    legend.position="none",
+    plot.margin=unit(c(0,0,0,0),"cm"),
+  ) +
+  expand_limits(x = c(-1.3, 1.3), y = c(-1.3, 1.3))
+
+```

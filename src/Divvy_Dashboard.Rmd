@@ -1,0 +1,188 @@
+---
+title: "Divvy_Dashboard"
+author: "Zack Larsen"
+date: "8/25/2019"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: "journal"
+    social: [ "menu" ]
+    navbar:
+      - { title: "About Me", href: "https://zacklarsen.github.io/" , align: right}
+      - { icon: "fa-github", href: "https://github.com/ZackLarsen" , align: right}
+      - { icon: "fa-linkedin", href: "https://www.linkedin.com/in/larsenzachary/", align: right}
+    source: embed
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(pacman)
+library(plotly)
+library(magrittr)
+
+p_load(leaflet, leaflet.extras, flexdashboard, ggplot2, 
+       data.table, glue, DT, kableExtra, ggvis, here, 
+       conflicted, data.table, jsonlite, geojsonio, geosphere, 
+       networkD3, htmltools, treemap, highcharter, viridisLite,
+       ggmap, ggthemes, rbokeh, data.tree, ggraph, 
+       circlepackeR, viridis, patchwork, ggraph, RColorBrewer,
+       collapsibleTree, scales)
+
+conflict_prefer("here", "here")
+
+trips <- fread(here('data','trips.csv'), nrows = 1000)
+
+stations <- fread(here('data','stations.csv'))
+
+
+
+
+# ward_boundaries <- geojsonio::geojson_read(file.path(chi_data,"Boundaries_Wards.geojson"), what = "sp")
+
+
+```
+
+
+Landing Page - Divvy Data
+=========================================
+
+Column 
+-------------------------------------
+
+### Divvy stations, plotted using leaflet. This map can be zoomed in on interactively and the station names will be displayed upon hovering over the icon.
+
+
+```{r landing_map, cache=TRUE, eval=TRUE, echo=FALSE, warning=FALSE}
+
+stations_popup <- stations %>% 
+  mutate(
+    popup_text = paste(
+      sep = "<br/>",
+      glue("<b><a>{name}</a></b>"),
+      glue('Capacity: ',"<b><a>{capacity}</a></b>"),
+      paste(lat, lon, sep=', ')
+    )
+  )
+
+my_map <- leaflet(stations_popup) %>%
+  addTiles() %>%
+  addMarkers(lat = stations_popup$lat,
+             lng = stations_popup$lon,
+             label = lapply(stations_popup$popup_text, HTML)
+             )
+my_map
+
+```
+
+Column {.tabset}
+-------------------------------------
+   
+### Trips
+
+```{r, cache=TRUE, eval=TRUE, echo=FALSE}
+
+trips %>% 
+  select(start_time, end_time, bikeid, tripduration) %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```   
+
+
+### Trips greater than 10 minutes
+    
+```{r, cache=TRUE, eval=TRUE, echo=FALSE}
+
+trips %>% 
+  select(trip_id, start_time, end_time, tripduration) %>% 
+  filter(tripduration >= 10 * 60) %>% 
+  mutate(duration_in_minutes = tripduration / 60) %>% 
+  arrange(desc(duration_in_minutes)) %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+
+
+### Trips on Michigan Avenue
+    
+```{r, cache=TRUE, eval=TRUE, echo=FALSE}
+
+stations %>% 
+  filter(grepl("Michigan", name)) %>% 
+  arrange() %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+
+
+### Stations in Evanston
+    
+```{r, cache=TRUE, eval=TRUE, echo=FALSE}
+
+stations %>% 
+  filter(region == 'Evanston') %>% 
+  arrange() %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+
+
+Heatmaps {.storyboard data-commentary-width=200 data-navmenu="Traditional"} 
+=========================================
+
+These visualizations convey information about the density of certain data points geographically.
+
+### Leaflet is a great library for plotting heatmaps:
+
+```{r, cache=TRUE, eval=FALSE}
+
+ggplot(diamonds, aes(x=diamonds$cut, y=diamonds$price, fill=diamonds$color)) +
+  geom_boxplot() + 
+  scale_y_continuous(labels = dollar) + 
+  #guides(fill=FALSE) + 
+  ggtitle("Diamond price by cut type and color") + 
+  xlab("Type") + 
+  ylab("Price") + 
+  theme_fivethirtyeight() + 
+  coord_flip()
+
+x1 <- ggplot(data = diamonds,
+             mapping = aes(x = cut, y = price)) +
+  theme_economist() + 
+  scale_fill_economist()
+
+x1 + geom_boxplot(fill = "lightpink") + 
+  scale_y_continuous(label = dollar) +
+  coord_flip() + 
+  ggtitle("Diamond price by cut type")
+
+```
+
+<!-- *** -->
+
+<!-- Here we have two groupings: the "cut" of the diamond on the y-axis and the "color", which is mapped to the "fill" attribute. -->
+
+
+### Scatter Plots
+
+```{r, cache=TRUE, eval=FALSE}
+
+p <- ggplot(data = diamonds,
+            mapping = aes(x = depth, y = price))
+
+p + geom_point() +
+  annotate(geom = "rect", xmin = 70, xmax = 80,
+           ymin = 15000, ymax = 20000, fill = "red", alpha = 0.2) + 
+  annotate(geom = "text", x = 70, y = 14000,
+           label = "A surprisingly high \n recovery rate.", hjust = 0)
+
+```
+
+
