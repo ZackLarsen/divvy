@@ -158,6 +158,21 @@ rm(q2_2019_trips)
 
 
 
+# Trips merged with stations ----------------------------------------------
+
+trips
+
+stations
+
+glimpse(trips)
+
+glimpse(stations)
+
+
+merge(trips, stations, by.x = 'from_station_id', by.y = 'station_id')
+
+
+
 
 # dtplyr ------------------------------------------------------------------
 

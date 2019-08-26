@@ -14,7 +14,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 
 library(pacman)
 library(plotly)
@@ -34,6 +34,7 @@ trips <- fread(here('data','trips.csv'), nrows = 1000)
 
 stations <- fread(here('data','stations.csv'))
 
+trips_with_stations <- merge(trips, stations, by.x = 'from_station_id', by.y = 'station_id')
 
 
 
@@ -139,50 +140,35 @@ Heatmaps {.storyboard data-commentary-width=200 data-navmenu="Traditional"}
 
 These visualizations convey information about the density of certain data points geographically.
 
-### Leaflet is a great library for plotting heatmaps:
 
-```{r, cache=TRUE, eval=FALSE}
+### Heatmaps
 
-ggplot(diamonds, aes(x=diamonds$cut, y=diamonds$price, fill=diamonds$color)) +
-  geom_boxplot() + 
-  scale_y_continuous(labels = dollar) + 
-  #guides(fill=FALSE) + 
-  ggtitle("Diamond price by cut type and color") + 
-  xlab("Type") + 
-  ylab("Price") + 
-  theme_fivethirtyeight() + 
-  coord_flip()
+```{r, cache=TRUE, eval=TRUE}
 
-x1 <- ggplot(data = diamonds,
-             mapping = aes(x = cut, y = price)) +
-  theme_economist() + 
-  scale_fill_economist()
-
-x1 + geom_boxplot(fill = "lightpink") + 
-  scale_y_continuous(label = dollar) +
-  coord_flip() + 
-  ggtitle("Diamond price by cut type")
+leaflet(trips_with_stations) %>%
+  addTiles() %>% 
+  addHeatmap(lng=~lon,
+             lat=~lat,
+             radius = 8)
 
 ```
 
-<!-- *** -->
 
-<!-- Here we have two groupings: the "cut" of the diamond on the y-axis and the "color", which is mapped to the "fill" attribute. -->
+Other {.storyboard data-commentary-width=200 data-navmenu="Other"} 
+=========================================
+
+These visualizations convey information about trips and riders.
 
 
-### Scatter Plots
+### Histogram
 
-```{r, cache=TRUE, eval=FALSE}
+```{r histogram, cache=TRUE, warning=FALSE, message=FALSE}
 
-p <- ggplot(data = diamonds,
-            mapping = aes(x = depth, y = price))
-
-p + geom_point() +
-  annotate(geom = "rect", xmin = 70, xmax = 80,
-           ymin = 15000, ymax = 20000, fill = "red", alpha = 0.2) + 
-  annotate(geom = "text", x = 70, y = 14000,
-           label = "A surprisingly high \n recovery rate.", hjust = 0)
+ggplot(trips, aes(start.hour)) +
+  geom_bar(fill = "dodgerblue",width = 0.6) +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 
 ```
-
 
