@@ -14,7 +14,8 @@ p_load(data.table, dtplyr, lubridate,
 
 conflict_prefer("filter", "dplyr")
 conflict_prefer("year", "lubridate")
-
+conflict_prefer("hour", "lubridate")
+conflict_prefer("wday", "lubridate")
 
 
 
@@ -213,6 +214,42 @@ trips_lazy %>%
 
 
 
+
+
+
+
+
+
+by_hour <- trips_lazy %>% 
+  mutate(
+    dow = wday(start_time, label = TRUE, abbr = FALSE),
+    start_hour = hour(start_time)
+  ) %>% 
+  group_by(dow, start_hour) %>% 
+  tally()
+
+by_hour %>% 
+  as_tibble() %>% 
+  fwrite('data/by_hour.csv')
+  
+  
+
+
+by_twelve_hour <- trips_lazy %>% 
+  mutate(
+    dow = wday(start_time, label = TRUE, abbr = FALSE),
+    start_hour = hour(start_time),
+    half_of_day = ifelse(am(start_time), "AM", "PM"),
+    twelve_hour = ifelse(start_hour > 12, start_hour - 12, start_hour),
+    twelve_hour2 = paste0(twelve_hour, half_of_day),
+  ) %>% 
+  select(-start_hour, -half_of_day, -twelve_hour) %>% 
+  group_by(dow, twelve_hour2) %>% 
+  tally()
+
+by_twelve_hour %>% 
+  as_tibble() %>% 
+  fwrite('data/by_twelve_hour.csv')
 
 
 

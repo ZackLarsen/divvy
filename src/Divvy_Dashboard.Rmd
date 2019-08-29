@@ -36,7 +36,9 @@ stations <- fread(here('data','stations.csv'))
 
 trips_with_stations <- merge(trips, stations, by.x = 'from_station_id', by.y = 'station_id')
 
+by_hour <- fread(here('data','by_hour.csv'))
 
+by_twelve_hour <- fread(here('data', 'by_twelve_hour.csv'))
 
 # ward_boundaries <- geojsonio::geojson_read(file.path(chi_data,"Boundaries_Wards.geojson"), what = "sp")
 
@@ -160,13 +162,40 @@ Other {.storyboard data-commentary-width=200 data-navmenu="Other"}
 These visualizations convey information about trips and riders.
 
 
-### Histogram
+### Histogram by hour
+
 
 ```{r histogram, cache=TRUE, warning=FALSE, message=FALSE}
 
-ggplot(trips, aes(start.hour)) +
-  geom_bar(fill = "dodgerblue",width = 0.6) +
+by_hour_data <- by_hour %>% 
+  mutate(start_hour = as.factor(start_hour))
+
+ggplot(by_hour_data, aes(x = start_hour, y = n)) +
+  geom_bar(fill = "dodgerblue", width = 0.6, stat="identity") +
+  facet_wrap(~dow, ncol = 2) +
+  scale_x_discrete(breaks = seq(0,24,2)) +
   theme_minimal() +
+  scale_x_discrete() + 
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+```
+
+
+### Histogram by AM/PM
+
+
+```{r}
+
+by_twelve_hour_data <- by_twelve_hour %>% 
+  mutate(twelve_hour2 = as.factor(twelve_hour2))
+
+ggplot(by_twelve_hour_data, aes(x = twelve_hour2, y = n)) +
+  geom_bar(fill = "dodgerblue", width = 0.6, stat="identity") +
+  facet_wrap(~dow, ncol = 2) +
+  scale_x_discrete(breaks = seq(0,24,2)) +
+  theme_minimal() +
+  scale_x_discrete() + 
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
