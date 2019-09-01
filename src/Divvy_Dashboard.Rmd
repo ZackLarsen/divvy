@@ -156,7 +156,7 @@ leaflet(trips_with_stations) %>%
 ```
 
 
-Other {.storyboard data-commentary-width=200 data-navmenu="Other"} 
+Histograms {.storyboard data-commentary-width=200 data-navmenu="Other"} 
 =========================================
 
 These visualizations convey information about trips and riders.
@@ -165,7 +165,7 @@ These visualizations convey information about trips and riders.
 ### Histogram by hour
 
 
-```{r histogram, cache=TRUE, warning=FALSE, message=FALSE}
+```{r histo_hour, cache=TRUE, warning=FALSE, message=FALSE}
 
 by_hour_data <- by_hour %>% 
   mutate(start_hour = as.factor(start_hour))
@@ -185,7 +185,7 @@ ggplot(by_hour_data, aes(x = start_hour, y = n)) +
 ### Histogram by AM/PM
 
 
-```{r}
+```{r histo_am_pm}
 
 by_twelve_hour_data <- by_twelve_hour %>% 
   mutate(twelve_hour2 = as.factor(twelve_hour2))
