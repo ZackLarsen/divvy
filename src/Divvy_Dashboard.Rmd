@@ -57,7 +57,13 @@ Column
 
 ```{r landing_map, cache=TRUE, eval=TRUE, echo=FALSE, warning=FALSE}
 
-stations_popup <- stations %>% 
+bike_icon <- makeIcon(
+  iconUrl = "/Users/zacklarsen/Zack_Master/Projects/Dataviz/R/divvy/img/Divvy-icon.png",
+  iconWidth = 35, iconHeight = 35,
+  iconAnchorX = 0, iconAnchorY = 10
+)
+
+station_labels <- stations %>% 
   mutate(
     popup_text = paste(
       sep = "<br/>",
@@ -67,12 +73,15 @@ stations_popup <- stations %>%
     )
   )
 
-my_map <- leaflet(stations_popup) %>%
+my_map <- leaflet(station_labels) %>%
   addTiles() %>%
-  addMarkers(lat = stations_popup$lat,
-             lng = stations_popup$lon,
-             label = lapply(stations_popup$popup_text, HTML)
-             )
+  addMarkers(
+    lat = station_labels$lat,
+    lng = station_labels$lon,
+    label = lapply(station_labels$popup_text, HTML),
+    icon = bike_icon
+    )
+
 my_map
 
 ```
@@ -147,7 +156,8 @@ These visualizations convey information about the density of certain data points
 
 ```{r, cache=TRUE, eval=TRUE}
 
-leaflet(trips_with_stations) %>%
+leaflet(trips_with_stations, options = leafletOptions(minZoom = 10, maxZoom = 14)) %>%
+  setView(lng = -87.71335, lat = 41.85627	, zoom = 10) %>% 
   addTiles() %>% 
   addHeatmap(lng=~lon,
              lat=~lat,
