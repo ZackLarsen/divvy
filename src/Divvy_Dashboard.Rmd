@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = FALSE)
 library(pacman)
 library(plotly)
 library(magrittr)
+library(tibble)
 
 p_load(leaflet, leaflet.extras, flexdashboard, ggplot2, 
        data.table, glue, DT, kableExtra, ggvis, here, 
@@ -26,7 +27,7 @@ p_load(leaflet, leaflet.extras, flexdashboard, ggplot2,
        networkD3, htmltools, treemap, highcharter, viridisLite,
        ggmap, ggthemes, rbokeh, data.tree, ggraph, 
        circlepackeR, viridis, patchwork, ggraph, RColorBrewer,
-       collapsibleTree, scales)
+       collapsibleTree, scales, janitor)
 
 conflict_prefer("here", "here")
 
@@ -36,9 +37,12 @@ stations <- fread(here('data','stations.csv'))
 
 trips_with_stations <- merge(trips, stations, by.x = 'from_station_id', by.y = 'station_id')
 
-by_hour <- fread(here('data','by_hour.csv'))
 
+# Data below created in ETL.R script:
+by_hour <- fread(here('data','by_hour.csv'))
 by_twelve_hour <- fread(here('data', 'by_twelve_hour.csv'))
+
+
 
 # ward_boundaries <- geojsonio::geojson_read(file.path(chi_data,"Boundaries_Wards.geojson"), what = "sp")
 
@@ -46,7 +50,7 @@ by_twelve_hour <- fread(here('data', 'by_twelve_hour.csv'))
 ```
 
 
-Landing Page - Divvy Data
+Landing Page - Divvy Stations
 =========================================
 
 Column 
@@ -88,7 +92,67 @@ my_map
 
 Column {.tabset}
 -------------------------------------
-   
+
+These tabs are populated with data from Divvy's live feed, available at https://gbfs.divvybikes.com/gbfs/gbfs.json.
+
+### Station Status
+
+
+```{r status, echo=FALSE, cache=TRUE}
+
+station_status <- fromJSON("https://gbfs.divvybikes.com/gbfs/en/station_status.json")
+
+station_status_data <- station_status$data
+
+station_status_data %<>% 
+  as.data.frame() %>% 
+  clean_names(., "small_camel")
+  
+colnames(station_status_data) = gsub("stations", "", colnames(station_status_data))
+
+station_status_data %>% 
+  select(StationId, NumBikesAvailable) %>% 
+  arrange(-NumBikesAvailable) %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+
+
+### Station Information
+
+```{r info, echo=FALSE, cache=TRUE}
+
+station_information <- fromJSON("https://gbfs.divvybikes.com/gbfs/en/station_information.json")
+
+station_information_data <- station_information$data$stations
+
+station_information_data %<>% 
+  as.data.frame() %>% 
+  clean_names(., "small_camel")
+  
+colnames(station_information_data) = gsub("stations", "", colnames(station_information_data))
+
+station_information_data %>% 
+  select(stationId, name, lat, lon, capacity) %>% 
+  arrange(-capacity) %>% 
+  head(n=20) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+
+
+
+
+Trips
+=========================================
+
+Column {.tabset}
+-------------------------------------
+
+
 ### Trips
 
 ```{r, cache=TRUE, eval=TRUE, echo=FALSE}
@@ -146,7 +210,15 @@ stations %>%
 ```
 
 
-Heatmaps {.storyboard data-commentary-width=200 data-navmenu="Traditional"} 
+### Session Info
+
+```{r sess}
+
+sessionInfo()
+
+```
+
+Traditional {.storyboard data-commentary-width=200 data-navmenu="Traditional"} 
 =========================================
 
 These visualizations convey information about the density of certain data points geographically.
@@ -181,7 +253,7 @@ by_hour_data <- by_hour %>%
   mutate(start_hour = as.factor(start_hour))
 
 ggplot(by_hour_data, aes(x = start_hour, y = n)) +
-  geom_bar(fill = "dodgerblue", width = 0.6, stat="identity") +
+  geom_bar(fill = "dodgerblue", width = 0.6, stat = "identity") +
   facet_wrap(~dow, ncol = 2) +
   scale_x_discrete(breaks = seq(0,24,2)) +
   theme_minimal() +
@@ -210,4 +282,3 @@ ggplot(by_twelve_hour_data, aes(x = twelve_hour2, y = n)) +
         panel.grid.minor = element_blank())
 
 ```
-
