@@ -2,7 +2,7 @@
 layout: default
 ---
 
-![Divvy](img/Divvy_logo.png)
+![Divvy Logo](divvy/img/Divvy_logo.png)
 
 ## Hello!
 
