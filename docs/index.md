@@ -8,7 +8,7 @@ This project uses bike sharing data from [Divvy](https://www.divvybikes.com/syst
 
 The various parts of this project are as follows:
 1. [Data procurement](https://zacklarsen.github.io/divvy/Data.html)
-1. [Exploratory data analysisA](https://zacklarsen.github.io/divvy/EDA.html)
+1. [Exploratory data analysis](https://zacklarsen.github.io/divvy/EDA.html)
 1. [Flexdashboard](https://zacklarsen.github.io/divvy/Flex.html)
 1. [Station demand forecasting model](https://zacklarsen.github.io/divvy/Model.html)
 
